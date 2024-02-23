@@ -1,0 +1,827 @@
+#define _CRT_SECURE_NO_WARNINGS
+
+#include <stdio.h>
+#include <math.h>
+#include <conio.h>
+#include <ctime>
+#include <iostream>
+#include <stdlib.h>
+#include <time.h>
+#include <windows.h>
+#include <easyx.h>
+#include <graphics.h>
+#include <mmsystem.h>
+#include <vector>
+#include <cstdlib>
+#pragma comment(lib,"winmm.lib")
+using namespace std;
+
+const char* html = "我的项目.html";
+
+IMAGE img[20];//图片加载上限
+int ga_n = 0;//页面序数
+int ga_n0 = 0;//游戏序数
+int ga_playgame = 0;//初始化
+int ga_numn = 4;//游戏数
+int ga_numde = 2;//模式数
+COLORREF ga_A = WHITE;//未触碰字色
+COLORREF ga_B = 0xb393c6;//触碰字色
+int ga_po = 140;//字体大小
+int ga_mus = 0;//歌曲序数
+int ga_numus = 2;//歌曲基数
+char ga_key = 'd';//按键检测
+int ga_muse = 0;//歌曲间隔
+int ga_debug = 1;//模式
+int ga_buy = 0;//按键方式
+int ga_die = 0;//死亡模式
+
+int p1_kx = 0;//蛇移变化量
+int p1_ky = 0;//蛇移变化量
+int p1_X = 0;//蛇尾清除变量
+int p1_Y = 0;//蛇尾清除变量
+int p1_v = 420;//蛇速度
+int p1_vx = 0;//加速判断
+int p1_w = 1920 / 30;//贪吃蛇边框长
+int p1_h = 1020 / 30;//贪吃蛇边框高
+
+const int p2_ROWS = 10;//地雷行
+const int p2_COLS = 10;//地雷列
+const int p2_MINES = 10;//雷数
+vector<vector<char>> p2_board(p2_ROWS, vector<char>(p2_COLS, ' '));//地雷数组初始化
+vector<vector<bool>> p2_mineLocations(p2_ROWS, vector<bool>(p2_COLS, false));//地雷检测
+int p2_board1[p2_ROWS][p2_COLS] = {};//翻版检测
+int p2_board2 = 0;//总翻版数
+
+double p3_fh = 460;//流飞飞横坐标
+double p3_fv = 1;//流飞飞变化量
+int p3_t = 0;//流飞飞时刻
+int p3_blo = 200;//流飞飞间隔
+int p3_on = 0;//上尖刺长
+int p3_flygame = 0;//流飞飞变量
+int p3_sro = 0;//分数
+
+//初始化
+void come()
+{
+	ga_n = 0;
+	ga_n0 = 0;
+	ga_playgame = 0;
+	ga_numn = 4;
+	ga_numde = 2;
+	ga_A = WHITE;
+	ga_B = 0xb393c6;
+	ga_po = 140;
+	ga_mus = 0;
+	ga_numus = 2;
+	ga_key = 'd';
+	ga_muse = 0;
+	ga_debug = 1;
+	p1_kx = 0;
+	p1_ky = 0;
+	p1_X = 0;
+	p1_Y = 0;
+	p1_v = 420;
+	p1_w = 1920 / 30;
+	p1_h = 1020 / 30;
+	vector<vector<char>> p2_board(p2_ROWS, vector<char>(p2_COLS, ' '));
+	vector<vector<bool>> p2_mineLocations(p2_ROWS, vector<bool>(p2_COLS, false));
+	p2_board1[p2_ROWS][p2_COLS] = {};
+	p2_board2 = 0;
+	p3_fh = 460;
+	p3_fv = 1;
+	p3_t = 0;
+	p3_blo = 200;
+	p3_on = 0;
+	p3_flygame = 0;
+	p3_sro = 0;
+}
+
+//音乐和音效
+void arr1()
+{
+	mciSendString("open music//1.mp3", 0, 0, 0);
+	mciSendString("play music//1.mp3", 0, 0, 0);
+}
+void arr2()
+{
+	mciSendString("open music//2.mp3", 0, 0, 0);
+	mciSendString("play music//2.mp3", 0, 0, 0);
+}
+void arr3()
+{
+	mciSendString("open music//3.mp3", 0, 0, 0);
+	mciSendString("play music//3.mp3", 0, 0, 0);
+}
+void arr6()
+{
+	mciSendString("close music//6.mp3", 0, 0, 0);
+	mciSendString("open music//6.mp3", 0, 0, 0);
+	mciSendString("play music//6.mp3", 0, 0, 0);
+}
+
+//类加载
+struct BODY
+{
+	int X;
+	int Y;
+};
+struct SNAKE
+{
+	struct BODY body[34 * 64];//h*w
+	int size;
+}snake;
+struct FOOD
+{
+	int X;
+	int Y;
+}food;
+
+//按钮
+class Button
+{
+public:
+	Button(int x, int y, int width, int height, COLORREF color, string pText)
+	{
+		this->x = x;
+		this->y = y;
+		this->width = width;
+		this->height = height;
+		this->color = color;
+		this->pText = pText;
+	}
+	void drawButtonA1()
+	{
+		setfillcolor(this->color);
+		settextstyle(ga_po, 0, "楷体");
+		settextcolor(ga_A);
+		setbkmode(TRANSPARENT);
+		outtextxy(this->x + 20, this->y + 20, this->pText.c_str());
+	}
+	void drawButtonB1()
+	{
+		setfillcolor(this->color);
+		settextstyle(ga_po+10, 0, "楷体");
+		settextcolor(ga_B);
+		setbkmode(TRANSPARENT);
+		outtextxy(this->x, this->y+ga_buy, this->pText.c_str());
+	}
+	int mouseInButton(MOUSEMSG m)
+	{
+		if (this->x <= m.x && m.x <= this->x + this->width && this->y <= m.y && m.y <= this->height + this->y)
+		{
+			return 1;
+		}
+		return 0;
+	}
+	void putButton(Button* G, MOUSEMSG m)
+	{
+		if (G->mouseInButton(m))
+		{
+			G->drawButtonB1();
+		}
+		else
+		{
+			G->drawButtonA1();
+		}
+	}
+	int hitButton(Button* G, MOUSEMSG m)
+	{
+		if (m.uMsg == WM_LBUTTONDOWN && G->mouseInButton(m))
+		{
+			return 1;
+		}
+		else
+		{
+			return 0;
+		}
+	}
+	COLORREF& getColor()
+	{
+		return color;
+	}
+protected:
+	int x;
+	int y;
+	int width;
+	int height;
+	COLORREF color;
+	string pText;
+};
+
+//贪吃蛇
+class Snake
+{
+public:
+	void initSnake()
+	{
+		snake.size = 2;//初始节数
+		snake.body[0].X = p1_w / 2;
+		snake.body[0].Y = p1_h / 2;
+		snake.body[1].X = p1_w / 2 - 1;
+		snake.body[1].Y = p1_h / 2;
+	}
+	void initFood()
+	{
+		food.X = rand() % 60 + 2;//食物出现区域
+		food.Y = rand() % 30 + 2;
+	}
+	void initve()
+	{
+		if (snake.size <= 30)
+		{
+			p1_v = 420 - snake.size * 10;
+		}
+		else
+		{
+			p1_v -= 120 - (snake.size - 30);
+		}
+	}
+};
+
+//扫雷
+class Board
+{
+public:
+	void InitializeBoard()//生成雷
+	{
+		int count = 0;
+		while (count < p2_MINES)
+		{
+			int row = rand() % p2_ROWS;
+			int col = rand() % p2_COLS;
+			if (!p2_mineLocations[row][col])
+			{
+				p2_mineLocations[row][col] = true;
+				count++;
+			}
+		}
+	}
+	void PrintBoard(bool revealMines = false)//结束
+	{
+		system("cls");
+		for (int i = 0; i < p2_ROWS; i++)
+		{
+			for (int j = 0; j < p2_COLS; j++)
+			{
+				if (p2_board[i][j] == ' ' && revealMines && p2_mineLocations[i][j])
+				{
+					putimage(i * 102 + 900, j * 102, img + 5);
+				}
+				else
+				{
+					putimage(i * 102 + 900, j * 102, img + 7);
+				}
+			}
+		}
+	}
+	void PlaceNumber(int row, int col)
+	{
+		if (row >= 0 && p2_board1[row][col] == 0)
+		{
+			putimage(row * 102 + 900, col * 102, img + 7);
+			p2_board1[row][col] = 1;
+		}
+		if (row >= 0 && row < p2_ROWS && col >= 0 && col < p2_COLS && p2_board[row][col] == ' ')
+		{
+			int count[11][11] = {};
+			for (int i = row - 1; i <= row + 1; i++)
+			{
+				for (int j = col - 1; j <= col + 1; j++)
+				{
+					if (i >= 0 && i < p2_ROWS && j >= 0 && j < p2_COLS && p2_mineLocations[i][j])
+					{
+						count[row][col]++;
+					}
+				}
+			}
+			p2_board[row][col] = count[row][col] + '0';
+			if (ga_debug == 0)
+			{
+				settextcolor(BLACK);
+				char uy[] = "count[row][col]";
+				sprintf(uy, "%d", count[row][col]);
+				outtextxy(row * 102 + 900, col * 102, uy);
+			}
+			else if (ga_debug != 0 && count[row][col] != 0)
+			{
+				settextcolor(BLACK);
+				char uy[] = "count[row][col]";
+				sprintf(uy, "%d", count[row][col]);
+				outtextxy(row * 102 + 900, col * 102, uy);
+			}
+			if (count[row][col] == 0)
+			{
+				for (int i = row - 1; i < row + 1; i++)
+				{
+					for (int j = col - 1; j < col + 1; j++)
+					{
+						PlaceNumber(i, j);
+					}
+				}
+			}
+		}
+	}
+};
+
+//流飞飞
+class Flyair
+{
+public:
+	void dies(int on)
+	{
+		loadimage(died + 0, "images/尖刺上1.png", 100, on);
+		loadimage(died + 1, "images/尖刺上2.png", 100, on);
+		loadimage(died + 2, "images/尖刺下1.png", 100, 1020 - on - p3_blo);
+		loadimage(died + 3, "images/尖刺下2.png", 100, 1020 - on - p3_blo);
+	}
+	void die(int on,int t)
+	{
+		putimage(520 - t, 0, died + 1, NOTSRCERASE);
+		putimage(520 - t, 0, died + 0, SRCINVERT);
+		putimage(520 - t, on + p3_blo, died + 3, NOTSRCERASE);
+		putimage(520 - t, on + p3_blo, died + 2, SRCINVERT);
+	}
+protected:
+	IMAGE died[4];
+};
+
+//时间
+int getTime()
+{
+	return clock() / CLOCKS_PER_SEC;
+}
+
+//音乐关停
+void closemusic()
+{
+	mciSendString("close music//1.mp3", 0, 0, 0);
+	mciSendString("close music//2.mp3", 0, 0, 0);
+}
+
+//音乐播放管理
+void music()
+{
+	int a = getTime();
+	int b = 0;
+	if (a - b > ga_muse)
+	{
+		if (ga_mus % 2 + 1 == 1)
+		{
+			arr1();
+		}
+		else if (ga_mus % 2 + 1 == 2)
+		{
+			arr2();
+		}
+		b = a;
+	}
+	switch (ga_mus % ga_numus)
+	{
+	case 0:
+		ga_muse = 200;
+		break;
+	case 1:
+		ga_muse = 110;
+	}
+}
+
+//初始界面
+void game0()
+{
+	int a = getTime();
+	int b = 0;
+	if (a - b > 618)
+	{
+		mciSendString("close music//3.mp3", 0, 0, 0);
+		arr3();
+		b = a;
+	}
+	putimage(0, 0, img + 4);
+	Button* T = new Button(0, 0, 100, 100, WHITE, "游戏介绍");
+	Button* D = new Button(660, 400, 600, 200, WHITE, "选择游戏");
+	Button* G = new Button(660, 700, 600, 200, WHITE, "开始游戏");
+	Button* MUS = new Button(1720, 920, 200, 100, WHITE, "设置");
+	MOUSEMSG m = GetMouseMsg();
+	ga_po = 60;
+	T->putButton(T, m);
+	if (T->hitButton(T, m))
+	{
+		string command = "start " + string(html);
+		system(command.c_str());
+	}
+	ga_po = 140;
+	G->putButton(G, m);
+	if (G->hitButton(G, m))
+	{
+		mciSendString("close music//3.mp3", 0, 0, 0);
+		music();
+		ga_n = 1;
+	}
+	D->putButton(D, m);
+	if (D->hitButton(D, m))
+	{
+		ga_n = -2;
+	}
+	ga_po = 60;
+	settextstyle(60, 0, "楷体");
+	settextcolor(ga_A);
+	outtextxy(0, 940, "本游戏由逸晔郅磬独立开发制作");
+	MUS->putButton(MUS, m);
+	if (MUS->hitButton(MUS, m))
+	{
+		ga_n = -1;
+	}
+	ga_po = 140;
+	EndBatchDraw();
+}
+
+//游戏界面——贪吃蛇
+void sna()
+{
+	Snake p1;
+	if (ga_playgame < 1)
+	{
+		p1.initSnake();
+		p1.initFood();
+		ga_playgame++;
+	}
+	putimage(0, 0, img + 0);
+	music();
+	putimage(30 * snake.body[0].X, 30 * snake.body[0].Y, img + 2);
+	for (int i = 1; i < snake.size; i++)
+	{
+		putimage(30 * snake.body[i].X, 30 * snake.body[i].Y, img + 3);
+	}
+	if (ga_debug != 0)
+	{
+		if (_kbhit())
+		{
+			ga_key = _getch();
+		}
+		switch (ga_key)
+		{
+		case 'w':case 'W': p1_kx = 0; p1_ky = -1; break;
+		case 'a':case 'A':p1_kx = -1; p1_ky = 0; break;
+		case 's':case 'S':p1_kx = 0; p1_ky = 1; break;
+		case 'd':case 'D':p1_kx = 1; p1_ky = 0; break;
+		case 'x':case 'X':p1_vx++;p1_vx = p1_vx % 2;
+		default:break;
+		}
+	}
+	else
+	{
+		outtextxy(900, 480, "正在开发中");
+	}
+	p1_X = snake.body[snake.size - 1].X;
+	p1_Y = snake.body[snake.size - 1].Y;
+	for (size_t i = 1; i < snake.size; i++)
+	{
+		if (snake.body[0].X == snake.body[i].X && snake.body[0].Y == snake.body[i].Y)
+		{
+			ga_n = 2;
+		}
+	}
+	if (snake.body[0].X == food.X && snake.body[0].Y == food.Y)
+	{
+	F:
+		p1.initFood();
+		for (int i = 0; i < snake.size; i++)
+		{
+			if (food.X == snake.body[i].X && food.Y == snake.body[i].Y)
+			{
+				goto F;
+			}
+		}
+		snake.size++;
+		p1.initve();
+		arr6();
+	}
+	for (size_t i = snake.size - 1; i > 0; i--)
+	{
+		snake.body[i].X = snake.body[i - 1].X;
+		snake.body[i].Y = snake.body[i - 1].Y;
+	}
+	snake.body[0].X += p1_kx;
+	snake.body[0].Y += p1_ky;
+	if (snake.body[0].X < 0 || snake.body[0].Y < 0 || snake.body[0].X > 64 || snake.body[0].Y > 34)
+	{
+		ga_n = 2;
+	}
+	putimage(food.X * 30, food.Y * 30, img + 1);
+	char er[] = "snake.size";
+	sprintf(er, "%d", snake.size);
+	outtextxy(1700, 0, er);
+	EndBatchDraw();
+	if (p1_vx == 0)
+	{
+		Sleep(p1_v);
+	}
+	else
+	{
+		Sleep(100);
+	}
+}
+
+//游戏界面——扫雷
+void boa()
+{
+
+	Board p2;
+	if (ga_playgame < 1)
+	{
+		putimage(0, 0, img + 8);
+		p2.InitializeBoard();
+		for (int i = 0; i < p2_ROWS; i++)
+		{
+			for (int j = 0; j < p2_COLS; j++)
+			{
+				putimage(102 * i + 900, 102 * j, img + 6);
+			}
+		}
+		ga_playgame++;
+	}
+	MOUSEMSG m = GetMouseMsg();
+	if (m.uMsg == WM_LBUTTONDOWN && m.x >= 900)
+	{
+		int row = (m.x - 900) / 102;
+		int col = m.y / 102;
+		if (p2_mineLocations[row][col])//踩雷
+		{
+			p2.PrintBoard(true);
+			arr6();
+			ga_n = 2;
+			closemusic();
+			for (int i = 0; i < p2_ROWS; i++)
+			{
+				for (int j = 0; j < p2_COLS; j++)
+				{
+					p2_mineLocations[i][j] = false;
+				}
+			}
+		}
+		else
+		{
+			p2.PlaceNumber(row, col);
+		}
+	}
+	for (int i = 0; i < p2_ROWS; i++)
+	{
+		for (int j = 0; j < p2_COLS; j++)
+		{
+			p2_board2 = p2_board1[i][j] + p2_board2;
+
+		}
+	}
+	if (p2_board2 >= 90)
+	{
+		ga_n = 2;
+		p2_board2 = 0;
+	}
+	else
+	{
+		p2_board2 = 0;
+	}
+	EndBatchDraw();
+}
+
+//游戏界面——流飞飞
+void fly()
+{
+	if (ga_playgame < 1)
+	{
+		initgraph(520, 1020);
+		ga_playgame++;
+	}
+	Flyair p3;
+	putimage(-700, 0, img + 11);
+	putimage(235, p3_fh, img + 9, NOTSRCERASE);
+	putimage(235, p3_fh, img + 10, SRCINVERT);
+	if (p3_t >= 520 || p3_flygame <= 1)
+	{
+		if (p3_flygame <= 1)
+		{
+			p3_flygame++;
+		}
+		else
+		{
+			p3_t = 0;
+		}
+		p3_on = rand() % 620;
+	}
+	p3.dies(p3_on);
+	p3.die(p3_on, p3_t);
+	if (p3_t == 310)
+	{
+		if (p3_fh<(p3_on - 20) || p3_fh>(p3_on + p3_blo + 20))
+		{
+			ga_n = 2;
+			initgraph(1920, 1020);
+		}
+		else
+		{
+			p3_sro++;
+		}
+	}
+	if (bool s = MouseHit())
+	{
+		MOUSEMSG m = GetMouseMsg();
+		if (m.uMsg == WM_LBUTTONDOWN)
+		{
+			p3_fh = p3_fh - 100 * p3_fv;
+		}
+	}
+	p3_fh = p3_fh + p3_fv;
+	p3_t++;
+	char er[] = "p3_sro";
+	sprintf(er, "%d", p3_sro);
+	outtextxy(0, 0, er);
+	EndBatchDraw();
+}
+
+//游戏判断
+void game1(int n0)
+{
+	switch (n0)
+	{
+	case 0:sna(); break;
+	case 1:boa(); break;
+	case 2:fly(); break;
+	case 3: break;
+	}
+}
+
+//死亡界面
+int game2()
+{
+	if (ga_die == 1)
+	{
+		putimage(0, 0, img + 4);
+	}
+	Button* G0 = new Button(660, 200, 600, 200, WHITE, "回到标题");
+	Button* G1 = new Button(660, 600, 600, 200, WHITE, "退出游戏");
+	MOUSEMSG m = GetMouseMsg();
+	G0->putButton(G0, m);
+	if (G0->hitButton(G0, m))
+	{
+		come();
+		closemusic();
+		arr3();
+		return ga_n;
+	}
+	G1->putButton(G1, m);
+	if (G1->hitButton(G1, m))
+	{
+		return 0;
+	}
+	EndBatchDraw();
+}
+
+//设置
+void game_1()
+{
+	ga_po = 60;
+	putimage(0, 0, img + 4);
+	Button* MUS1 = new Button(50, 200, 200, 100, WHITE, "切换游戏音乐");
+	Button* MUS0 = new Button(0, 0, 200, 100, WHITE, "返回");
+	Button* MUS2 = new Button(50, 300, 200, 100, WHITE, "切换模式(开发中)");
+	Button* MUS3 = new Button(50, 400, 200, 100, WHITE, "切换按键样式");
+	Button* MUS4 = new Button(50, 500, 200, 100, WHITE, "切换死亡模式");
+	MOUSEMSG m = GetMouseMsg();
+	MUS1->putButton(MUS1, m);
+	if (MUS1->hitButton(MUS1, m))
+	{
+		ga_mus = ga_mus + 1;
+		ga_mus = ga_mus % ga_numus;
+		ga_muse = 0;
+	}
+	MUS2->putButton(MUS2, m);
+	if (MUS2->hitButton(MUS2, m))
+	{
+		ga_debug = ga_debug + 1;
+		ga_debug = ga_debug % ga_numde;
+	}
+	MUS0->putButton(MUS0, m);
+	if (MUS0->hitButton(MUS0, m))
+	{
+		if (m.uMsg == WM_LBUTTONDOWN)
+		{
+			mciSendString("close music//1.mp3", 0, 0, 0);
+			mciSendString("close music//2.mp3", 0, 0, 0);
+			ga_n = 0;
+			ga_muse = 0;
+		}
+	}
+	MUS3->putButton(MUS3, m);
+	if (MUS3->hitButton(MUS3, m))
+	{
+		if (ga_buy == 0)
+		{
+			ga_buy = 20;
+		}
+		else
+		{
+			ga_buy = 0;
+		}
+	}
+	MUS4->putButton(MUS4, m);
+	if (MUS4->hitButton(MUS4, m))
+	{
+		if (ga_die == 0)
+		{
+			ga_die = 1;
+		}
+		else
+		{
+			ga_die = 0;
+		}
+	}
+	switch (ga_mus)
+	{
+	case 0:settextstyle(60, 0, "楷体"); settextcolor(ga_A); outtextxy(500, 220, "使一颗心免于哀伤"); break;
+	case 1:settextstyle(60, 0, "楷体"); settextcolor(ga_A); outtextxy(500, 220, "贪吃蛇"); break;
+	}
+	switch (ga_die)
+	{
+	case 0:settextstyle(60, 0, "楷体"); settextcolor(ga_A); outtextxy(500, 520, "等待式"); break;
+	case 1:settextstyle(60, 0, "楷体"); settextcolor(ga_A); outtextxy(500, 520, "即死式"); break;
+	}
+	EndBatchDraw();
+}
+
+//游戏中枢
+void game_2()
+{
+	putimage(0, 0, img + 4);
+	Button* G0 = new Button(660, 600, 600, 200, WHITE, "回到标题");
+	Button* GAME = new Button(660, 200, 600, 200, WHITE, "切换游戏");
+	MOUSEMSG m = GetMouseMsg();
+	GAME->putButton(GAME, m);
+	if (GAME->hitButton(GAME, m))
+	{
+		ga_n0 = ga_n0 + 1;
+		ga_n0 = ga_n0 % ga_numn;
+	}
+	G0->putButton(G0, m);
+	if (G0->hitButton(G0, m))
+	{
+		ga_n = 0;
+	}
+	settextstyle(140, 0, "楷体");
+	settextcolor(ga_A);
+	switch (ga_n0)
+	{
+	case 0:outtextxy(780, 400, "贪吃蛇"); break;
+	case 1:outtextxy(780, 400, "扫雷"); break;
+	case 2:outtextxy(780, 400, "流飞飞"); break;
+	case 3:outtextxy(780, 400, "开发中"); break;
+	}
+	EndBatchDraw();
+}
+
+//图库
+void images()
+{
+	initgraph(1920, 1020);
+	loadimage(img + 0, "images//我们.png", 1920, 1020);
+	loadimage(img + 1, "images//流衣色.png", 30, 30);
+	loadimage(img + 2, "images//流萤色.png", 30, 30);
+	loadimage(img + 3, "images//主角色.png", 30, 30);
+	loadimage(img + 4, "images/流萤.jpg", 1920, 1020);
+	loadimage(img + 5, "images/死亡.jpg", 102, 102);
+	loadimage(img + 6, "images/格子.png", 102, 102);
+	loadimage(img + 7, "images//白色.png", 102, 102);
+	loadimage(img + 8, "images/流萤2.jpg", 1920, 1020);
+	loadimage(img + 9, "images/流萤5.2.jpg", 50, 50);
+	loadimage(img + 10, "images/流萤5.1.jpg", 50, 50);
+	loadimage(img + 11, "images/流萤6.jpg", 1920, 1020);
+}
+
+//显示判断
+void play(int n)
+{
+	switch (n)
+	{
+	case 0:game0(); break;
+	case 1:game1(ga_n0); break;
+	case 2:game2(); break;
+	case -1:game_1(); break;
+	case -2:game_2(); break;
+	}
+}
+
+//主函数
+int main()
+{
+	images();
+	come();
+	arr3();
+	srand(time(NULL));
+	while (1)
+	{
+		BeginBatchDraw();
+		play(ga_n);
+	}
+	system("pause");
+	closegraph();
+	return EXIT_SUCCESS;
+}
